@@ -77,6 +77,11 @@ public class ElevatorsCommand extends ComplexCommand {
 		}
 	}
 	
+	@Cmd (player = true)
+	public void toggleMoveListen(CommandContext cmd) {
+		elevators.listenMoveEvents = !elevators.listenMoveEvents;
+	}
+	
 	private Elevator getElevator(int id) {
 		Elevator elevator = elevators.getElevator(id);
 		if (elevator == null) sendError("Il n'y a pas d'ascenseur avec l'ID %d.", id);

@@ -9,9 +9,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 
 import fr.olympa.api.utils.observable.Observable.Observer;
 import fr.olympa.core.spigot.OlympaCore;
@@ -24,6 +26,8 @@ public class ElevatorsManager implements Listener {
 	
 	private File elevatorsFile;
 	private YamlConfiguration elevatorsYaml;
+	
+	boolean listenMoveEvents = false;
 	
 	public ElevatorsManager(File elevatorsFile) throws IOException {
 		this.elevatorsFile = elevatorsFile;
@@ -69,6 +73,12 @@ public class ElevatorsManager implements Listener {
 			}
 		};
 	}
+	
+	public void unload() {
+		HandlerList.unregisterAll(this);
+		
+		elevators.values().forEach(Elevator::destroy);
+	}
 
 	@EventHandler
 	public void onPlayerInteract(PlayerInteractEvent e) {
@@ -80,10 +90,16 @@ public class ElevatorsManager implements Listener {
 						elevator.descend();
 					}else if (click.equals(floor.getButtonUp())) {
 						elevator.ascend();
-					}else return;
+					}else continue;
+					return;
 				}
 			}
 		}
+	}
+	
+	@EventHandler
+	public void onPlayerMove(PlayerMoveEvent e) {
+		if (listenMoveEvents) System.out.println(e.getTo().toString());
 	}
 	
 }

@@ -13,11 +13,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.craftbukkit.v1_16_R1.entity.CraftEntity;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Shulker;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -30,16 +33,20 @@ import fr.olympa.worldfeatures.OlympaWorldFeatures;
 
 public class Elevator extends AbstractObservable {
 	
-	private static final PotionEffect INVISIBILITY = new PotionEffect(PotionEffectType.INVISIBILITY, 99999, 0, false, false);
+	private static final int LEVITATION_LEVEL = 0; // les niveaux au-dessus font quelques glitchs visuels
+	private static final double TICK_Y_ADDITION = ((LEVITATION_LEVEL + 1) * 0.9D) / 20D;
 	
-	//private int id;
+	private static final PotionEffect INVISIBILITY = new PotionEffect(PotionEffectType.INVISIBILITY, 99999, 0, false, false);
+	private static final PotionEffect LEVITATION = new PotionEffect(PotionEffectType.LEVITATION, 25, LEVITATION_LEVEL, false, false, false);
 	
 	private List<Floor> floors = new ArrayList<>(5);
 	private int floor = 0;
 	
 	private Set<Chunk> chunks = new HashSet<>();
 	private List<ArmorStand> stands = new ArrayList<>();
+	private List<FallingBlock> blocks = new ArrayList<>();
 	private BukkitTask task = null;
+	private BukkitTask blocksTask = null;
 	
 	private BlockData blockData;
 	private final World world;
@@ -99,8 +106,9 @@ public class Elevator extends AbstractObservable {
 				ArmorStand stand = world.spawn(location, ArmorStand.class);
 				stand.setPersistent(false);
 				stand.setGravity(false);
-				//stand.setVisible(false);
+				stand.setVisible(false);
 				stand.setInvulnerable(true);
+				stands.add(stand);
 				
 				Shulker shulker = world.spawn(location, Shulker.class);
 				shulker.setPersistent(false);
@@ -108,42 +116,55 @@ public class Elevator extends AbstractObservable {
 				shulker.setGravity(false);
 				shulker.addPotionEffect(INVISIBILITY);
 				shulker.setInvulnerable(true);
-				//shulker.setCustomName(Integer.toString(id));
 				
 				FallingBlock block = world.spawnFallingBlock(location, blockData);
 				block.setPersistent(false);
 				block.setGravity(false);
 				block.setHurtEntities(false);
 				block.setInvulnerable(true);
+				blocks.add(block);
 				//block.setTicksLived(-999999999); à faire en NMS
 				
 				stand.addPassenger(shulker);
 				stand.addPassenger(block);
 				
-				stands.add(stand);
 				chunks.add(location.getChunk());
 			}
 		}
+		blocksTask = new BukkitRunnable() {
+			
+			@Override
+			public void run() {
+				blocks.forEach(block -> block.setTicksLived(1));
+			}
+		}.runTaskTimerAsynchronously(OlympaWorldFeatures.getInstance(), 100, 500);
 	}
 	
-	private void destroy() {
+	protected void destroy() {
 		for (Iterator<ArmorStand> iterator = stands.iterator(); iterator.hasNext();) {
 			ArmorStand stand = iterator.next();
 			stand.getPassengers().forEach(Entity::remove);
 			stand.remove();
 			iterator.remove();
 		}
+		blocksTask.cancel();
+		blocksTask = null;
 	}
 	
 	public void ascend() {
 		if (task != null) return;
-		if (floor >= floors.size()) return;
+		if (floor + 1 >= floors.size()) return;
 		Floor to = floors.get(floor + 1);
 		task = new BukkitRunnable() {
 			double y = floors.get(floor).y;
 			
+			int potion = 0;
+			List<LivingEntity> riding = new ArrayList<>(5);
+			
 			@Override
 			public void run() {
+				y += TICK_Y_ADDITION;
+				List<LivingEntity> on = new ArrayList<>(5);
 				for (Chunk chunk : chunks) {
 					for (Entity entity : chunk.getEntities()) {
 						if (entity instanceof ArmorStand || entity instanceof Shulker || entity instanceof FallingBlock) continue;
@@ -151,19 +172,41 @@ public class Elevator extends AbstractObservable {
 						int x = location.getBlockX();
 						int z = location.getBlockZ();
 						if (x >= xMin && x <= xMax && z >= zMin && z <= zMax) {
-							if (location.getY() - y < 1) { // l'entité est vraisemblablement sur la plateforme
-								entity.teleport(location.add(0, 0.05, 0));
+							double diff = location.getY() - y;
+							if (diff > 0 && diff < 2) { // l'entité est vraisemblablement sur la plateforme
+								if (entity instanceof LivingEntity) {
+									LivingEntity le = (LivingEntity) entity;
+									on.add(le);
+									boolean joins = !riding.remove(le);
+									if (joins) {
+										le.sendMessage("Bienvenue dans l'ascenseur !");
+										location.setY(y + 1.8);
+										entity.teleport(location);
+									}
+									if (joins || potion == 0) le.addPotionEffect(LEVITATION);
+								}
 							}
 						}
 					}
 				}
-				stands.forEach(stand -> {
-					stand.teleport(stand.getLocation().add(0, 1, 0));
+				riding.forEach(le -> {
+					le.sendMessage("Au revoir !");
+					le.removePotionEffect(PotionEffectType.LEVITATION);
 				});
-				if ((y += 0.05) >= to.y) {
+				riding = on;
+				stands.forEach(entity -> {
+					Location location = entity.getLocation();
+					location.setY(Math.min(to.y - 1, y - 1));
+					setNMSPosition(entity, location);
+				});
+				if (potion-- == 0) potion = 20;
+				if (y >= to.y) {
 					floor++;
 					cancel();
 					task = null;
+					playSound();
+					riding.forEach(le -> le.removePotionEffect(PotionEffectType.LEVITATION));
+					riding.clear();
 				}
 			}
 		}.runTaskTimer(OlympaWorldFeatures.getInstance(), 1L, 1L);
@@ -178,14 +221,28 @@ public class Elevator extends AbstractObservable {
 			
 			@Override
 			public void run() {
-				stands.forEach(stand -> stand.teleport(stand.getLocation().subtract(0, 0.05, 0)));
-				if ((y -= 0.05) <= to.y) {
+				y -= TICK_Y_ADDITION;
+				stands.forEach(entity -> {
+					Location location = entity.getLocation();
+					location.setY(Math.max(to.y - 1, y - 1));
+					setNMSPosition(entity, location);
+				});
+				if (y <= to.y) {
 					floor--;
 					cancel();
 					task = null;
+					playSound();
 				}
 			}
 		}.runTaskTimer(OlympaWorldFeatures.getInstance(), 1L, 1L);
+	}
+	
+	private void playSound() {
+		world.playSound(new Location(world, xMin, floors.get(floor).y, zMin), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
+	}
+	
+	private void setNMSPosition(Entity entity, Location newLocation) {
+		((CraftEntity) entity).getHandle().setPosition(newLocation.getX(), newLocation.getY(), newLocation.getZ());
 	}
 	
 	public Map<String, Object> serialize() {
@@ -202,8 +259,8 @@ public class Elevator extends AbstractObservable {
 		for (Floor floor : floors) {
 			Map<String, Object> floorMap = new HashMap<>();
 			floorMap.put("y", floor.y);
-			if (floor.getButtonUp() != null) floorMap.put("up", SpigotUtils.convertLocationToString(floor.buttonUp));
-			if (floor.getButtonDown() != null) floorMap.put("down", SpigotUtils.convertLocationToString(floor.buttonDown));
+			if (floor.buttonUp != null) floorMap.put("up", SpigotUtils.convertLocationToString(floor.buttonUp));
+			if (floor.buttonDown != null) floorMap.put("down", SpigotUtils.convertLocationToString(floor.buttonDown));
 			floorsMaps.add(floorMap);
 		}
 		map.put("floors", floorsMaps);
@@ -217,8 +274,8 @@ public class Elevator extends AbstractObservable {
 		List<Map<String, Object>> floorsMaps = (List<Map<String, Object>>) map.get("floors");
 		for (Map<String, Object> floorMap : floorsMaps) {
 			Floor floor = elevator.new Floor((int) floorMap.get("y"));
-			if (floorMap.containsKey("up")) floor.setButtonUp(SpigotUtils.convertStringToLocation((String) map.get("up")));
-			if (floorMap.containsKey("down")) floor.setButtonDown(SpigotUtils.convertStringToLocation((String) map.get("down")));
+			if (floorMap.containsKey("up")) floor.buttonUp = SpigotUtils.convertStringToLocation((String) floorMap.get("up"));
+			if (floorMap.containsKey("down")) floor.buttonDown = SpigotUtils.convertStringToLocation((String) floorMap.get("down"));
 			elevator.addFloor(floor);
 		}
 		

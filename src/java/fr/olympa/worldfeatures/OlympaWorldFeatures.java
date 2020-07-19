@@ -28,4 +28,11 @@ public class OlympaWorldFeatures extends OlympaAPIPlugin {
 		}
 	}
 	
+	@Override
+	public void onDisable() {
+		super.onDisable();
+		
+		elevators.unload();
+	}
+	
 }
