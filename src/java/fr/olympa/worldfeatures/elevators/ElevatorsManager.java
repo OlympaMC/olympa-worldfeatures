@@ -13,8 +13,10 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
 
+import fr.olympa.api.utils.Point2D;
 import fr.olympa.api.utils.observable.Observable.Observer;
 import fr.olympa.core.spigot.OlympaCore;
 import fr.olympa.worldfeatures.elevators.Elevator.Floor;
@@ -26,8 +28,6 @@ public class ElevatorsManager implements Listener {
 	
 	private File elevatorsFile;
 	private YamlConfiguration elevatorsYaml;
-	
-	boolean listenMoveEvents = false;
 	
 	public ElevatorsManager(File elevatorsFile) throws IOException {
 		this.elevatorsFile = elevatorsFile;
@@ -48,6 +48,10 @@ public class ElevatorsManager implements Listener {
 		new ElevatorsCommand(this).register();
 	}
 	
+	public Map<Integer, Elevator> getElevators() {
+		return elevators;
+	}
+	
 	public Elevator getElevator(int id) {
 		return elevators.get(id);
 	}
@@ -60,7 +64,9 @@ public class ElevatorsManager implements Listener {
 
 	private void addElevator(Elevator elevator, int id) {
 		elevators.put(id, elevator);
+		elevator.id = id;
 		elevator.observe("maager_save", updateElevator(id, elevator));
+		elevator.updateChunks();
 	}
 	
 	private Observer updateElevator(int id, Elevator elevator) {
@@ -85,21 +91,36 @@ public class ElevatorsManager implements Listener {
 		if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
 			Location click = e.getClickedBlock().getLocation();
 			for (Elevator elevator : elevators.values()) {
+				if (!elevator.isSpawned) continue;
 				for (Floor floor : elevator.getFloors()) {
-					if (click.equals(floor.getButtonDown())) {
-						elevator.descend();
-					}else if (click.equals(floor.getButtonUp())) {
-						elevator.ascend();
-					}else continue;
-					return;
+					if (floor.click(click)) return;
 				}
 			}
 		}
 	}
 	
 	@EventHandler
-	public void onPlayerMove(PlayerMoveEvent e) {
-		if (listenMoveEvents) System.out.println(e.getTo().toString());
+	public void onChunkUnload(ChunkUnloadEvent e) {
+		if (elevators.isEmpty()) return;
+		Point2D chunk = new Point2D(e.getChunk());
+		for (Elevator elevator : elevators.values()) {
+			if (elevator.chunks.containsKey(chunk)) {
+				elevator.chunks.put(chunk, null);
+				elevator.updateChunks();
+			}
+		}
+	}
+	
+	@EventHandler
+	public void onChunkLoad(ChunkLoadEvent e) {
+		if (elevators.isEmpty()) return;
+		Point2D chunk = new Point2D(e.getChunk());
+		for (Elevator elevator : elevators.values()) {
+			if (elevator.chunks.containsKey(chunk)) {
+				elevator.chunks.put(chunk, e.getChunk());
+				elevator.updateChunks();
+			}
+		}
 	}
 	
 }

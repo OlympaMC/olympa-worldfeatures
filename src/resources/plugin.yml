@@ -2,4 +2,5 @@ name: OlympaWorldFeatures
 author: SkytAsul
 version: 0.0.1
 api-version: 1.15
+depend: [OlympaCore]
 main: fr.olympa.worldfeatures.OlympaWorldFeatures
