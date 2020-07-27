@@ -57,6 +57,7 @@ public class Elevator extends AbstractObservable {
 	private BlockData blockData;
 	public final World world;
 	public final int xMin, zMin, xMax, zMax;
+	public final double xMinPlayer, zMinPlayer, xMaxPlayer, zMaxPlayer;
 	protected final Map<Point2D, Chunk> chunks = new HashMap<>();
 	
 	public Elevator(World world, int floor0y, int x1, int z1, int x2, int z2) {
@@ -68,9 +69,13 @@ public class Elevator extends AbstractObservable {
 	private Elevator(World world, int xMin, int zMin, int xMax, int zMax, BlockData blockData, int speed) {
 		this.world = world;
 		this.xMin = xMin;
+		this.xMinPlayer = xMin - 0.3;
 		this.zMin = zMin;
+		this.zMinPlayer = zMin - 0.3;
 		this.xMax = xMax;
+		this.xMaxPlayer = xMax + 1.3;
 		this.zMax = zMax;
+		this.zMaxPlayer = zMax + 1.3;
 		this.blockData = blockData;
 		
 		setSpeed(speed);
@@ -223,9 +228,9 @@ public class Elevator extends AbstractObservable {
 					for (Entity entity : chunk.getEntities()) {
 						if (entity instanceof ArmorStand || entity instanceof Shulker || entity instanceof FallingBlock) continue;
 						Location location = entity.getLocation();
-						int x = location.getBlockX();
-						int z = location.getBlockZ();
-						if (x >= xMin && x <= xMax && z >= zMin && z <= zMax) {
+						double x = location.getX();
+						double z = location.getZ();
+						if (x > xMinPlayer && x < xMaxPlayer && z > zMinPlayer && z < zMaxPlayer) {
 							double diff = location.getY() - y;
 							if (diff > 0 && diff < aboveY + 0.2) { // l'entité est vraisemblablement sur la plateforme
 								if (entity instanceof LivingEntity) {
@@ -233,7 +238,6 @@ public class Elevator extends AbstractObservable {
 									on.add(le);
 									boolean joins = !riding.remove(le);
 									if (joins) {
-										le.sendMessage("Bienvenue dans l'ascenseur !");
 										location.setY(y + aboveY);
 										entity.teleport(location);
 									}
@@ -243,10 +247,7 @@ public class Elevator extends AbstractObservable {
 						}
 					}
 				}
-				riding.forEach(le -> {
-					le.sendMessage("Au revoir !");
-					le.removePotionEffect(PotionEffectType.LEVITATION);
-				});
+				riding.forEach(le -> le.removePotionEffect(PotionEffectType.LEVITATION));
 				riding = on;
 				stands.forEach(entity -> {
 					Location location = entity.getLocation();
