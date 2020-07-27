@@ -43,10 +43,10 @@ public class ElevatorsCommand extends ComplexCommand {
 		sendSuccess("L'ascenseur %d a été créé.", elevators.addElevator(elevator));
 	}
 	
-	private TextComponent createCommandComponent(String legacyText, String command, Elevator elevator) {
+	private TextComponent createCommandComponent(String legacyText, String command, String after, Elevator elevator) {
 		TextComponent compo = new TextComponent();
 		compo.setHoverEvent(ComplexCommand.COMMAND_HOVER);
-		compo.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/elevators " + command + " " + elevator.getID() + " "));
+		compo.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/elevators " + command + " " + elevator.getID() + after));
 		for (BaseComponent baseComponent : TextComponent.fromLegacyText(legacyText)) compo.addExtra(baseComponent);
 		return compo;
 	}
@@ -73,8 +73,8 @@ public class ElevatorsCommand extends ComplexCommand {
 		
 		sender.spigot().sendMessage(getElevatorInfo(elevator));
 		
-		sender.spigot().sendMessage(createCommandComponent(Prefix.DEFAULT.formatMessage("§eVitesse : §6§l%d§e (§6%s§e)", elevator.getSpeed(), elevator.getSpeed() * 0.9 + " blocks/seconde"), "setSpeed", elevator));
-		sender.spigot().sendMessage(createCommandComponent(Prefix.DEFAULT.formatMessage("§eBlockdata : §6%s", elevator.getBlockData().getAsString()), "setBlock", elevator));
+		sender.spigot().sendMessage(createCommandComponent(Prefix.DEFAULT.formatMessage("§eVitesse : §6§l%d§e (§6%s§e)", elevator.getSpeed(), elevator.getSpeed() * 0.9 + " blocks/seconde"), "setSpeed", " ", elevator));
+		sender.spigot().sendMessage(createCommandComponent(Prefix.DEFAULT.formatMessage("§eBlockdata : §6%s", elevator.getBlockData().getAsString()), "setBlock", " ", elevator));
 		
 		sendSuccess("Étages : (%d)", elevator.getFloors().size());
 		
@@ -82,7 +82,7 @@ public class ElevatorsCommand extends ComplexCommand {
 		for (Floor floor : elevator.getFloors()) {
 			TextComponent floorCompo = new TextComponent();
 			floorCompo.setColor(ChatColor.YELLOW);
-			for (BaseComponent baseComponent : TextComponent.fromLegacyText(Prefix.DEFAULT.formatMessage("§eY : §6§l%d§e | ", floor.getY()))) floorCompo.addExtra(baseComponent);
+			floorCompo.addExtra(createCommandComponent(Prefix.DEFAULT.formatMessage("§eY : §6§l%d§e | ", floor.getY()), "setY", " " + id + " ", elevator));
 			floorCompo.addExtra(createButtonComponent(elevator, id, floor.getButtonUp(), "Montée", "UP"));
 			floorCompo.addExtra(new TextComponent(" | "));
 			floorCompo.addExtra(createButtonComponent(elevator, id, floor.getButtonDown(), "Descente", "DOWN"));
@@ -91,7 +91,7 @@ public class ElevatorsCommand extends ComplexCommand {
 			id++;
 		}
 		
-		sender.spigot().sendMessage(createCommandComponent(Prefix.DEFAULT_GOOD.formatMessage("Créer un nouvel étage..."), "addFloor", elevator));
+		sender.spigot().sendMessage(createCommandComponent(Prefix.DEFAULT_GOOD.formatMessage("Créer un nouvel étage..."), "addFloor", " ", elevator));
 	}
 	
 	@Cmd
@@ -102,7 +102,7 @@ public class ElevatorsCommand extends ComplexCommand {
 	}
 
 	private TextComponent getElevatorInfo(Elevator elevator) {
-		return createCommandComponent(Prefix.DEFAULT_GOOD.formatMessage("Ascenseur §l#%d§a au monde §l%s§a, s'étend de §l%d %d§a à §l%d %d §a(§l%d étages§a)%s", elevator.getID(), elevator.world.getName(), elevator.xMin, elevator.zMin, elevator.xMax, elevator.zMax, elevator.getFloors().size(), elevator.isSpawned ? "" : "§c | Déchargé"), "info", elevator);
+		return createCommandComponent(Prefix.DEFAULT_GOOD.formatMessage("Ascenseur §l#%d§a au monde §l%s§a, s'étend de §l%d %d§a à §l%d %d §a(§l%d étages§a)%s", elevator.getID(), elevator.world.getName(), elevator.xMin, elevator.zMin, elevator.xMax, elevator.zMax, elevator.getFloors().size(), elevator.isSpawned ? "" : "§c | Déchargé"), "info", "", elevator);
 	}
 	
 	@Cmd (args = { "ELEVATOR", "INTEGER" }, min = 2, syntax = "<elevator id> <floor y>")
@@ -135,6 +135,18 @@ public class ElevatorsCommand extends ComplexCommand {
 		}else {
 			sendError("Argument %s inconnu (requis : UP / DOWN)", button);
 		}
+	}
+	
+	@Cmd (player = true, args = { "ELEVATOR", "INTEGER", "INTEGER" }, min = 3, syntax = "<elevator id> <floor id> <floor y>")
+	public void setY(CommandContext cmd) {
+		Integer floorID = cmd.<Integer>getArgument(1);
+		Floor floor = cmd.<Elevator>getArgument(0).getFloors().get(floorID);
+		if (floor == null) {
+			sendError("Il n'y a pas d'étage avec l'ID %d.", floorID);
+			return;
+		}
+		floor.setY(cmd.getArgument(2));
+		sendSuccess("Tu as modifié la hauteur de l'étage.");
 	}
 	
 	@Cmd (player = true, args = { "ELEVATOR" }, min = 2, syntax = "<elevator id> <block data>")

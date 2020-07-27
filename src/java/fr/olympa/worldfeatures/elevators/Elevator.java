@@ -15,7 +15,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.craftbukkit.v1_16_R1.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_15_R1.entity.CraftEntity;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
@@ -33,6 +33,7 @@ import fr.olympa.worldfeatures.OlympaWorldFeatures;
 
 public class Elevator extends AbstractObservable {
 	
+	private static final int PAUSE_TIME = 10;
 	private static final PotionEffect INVISIBILITY = new PotionEffect(PotionEffectType.INVISIBILITY, 99999, 0, false, false);
 	
 	private List<Floor> floors = new ArrayList<>(5);
@@ -95,6 +96,10 @@ public class Elevator extends AbstractObservable {
 	
 	private void addFloor(Floor floor) {
 		floors.add(floor);
+		sortFloors();
+	}
+	
+	protected void sortFloors() {
 		Collections.sort(floors, (o1, o2) -> Integer.compare(o1.getY(), o2.getY()));
 	}
 	
@@ -141,8 +146,6 @@ public class Elevator extends AbstractObservable {
 		if (isSpawned) return;
 		isSpawned = true;
 		
-		System.out.println("spawn");
-		
 		int y = floors.get(floor).getY();
 		for (int x = xMin; x <= xMax; x++) {
 			for (int z = zMin; z <= zMax; z++) {
@@ -180,8 +183,6 @@ public class Elevator extends AbstractObservable {
 	protected void destroy() {
 		if (!isSpawned) return;
 		isSpawned = false;
-		
-		System.out.println("destroy");
 		
 		for (Iterator<ArmorStand> iterator = stands.iterator(); iterator.hasNext();) {
 			ArmorStand stand = iterator.next();
@@ -259,7 +260,7 @@ public class Elevator extends AbstractObservable {
 					playSound();
 					riding.forEach(le -> le.removePotionEffect(PotionEffectType.LEVITATION));
 					riding.clear();
-					pause = 60;
+					pause = PAUSE_TIME;
 				}
 			}
 		}.runTaskTimer(OlympaWorldFeatures.getInstance(), 1L, 1L);
@@ -294,7 +295,7 @@ public class Elevator extends AbstractObservable {
 				if (y <= to.getY()) {
 					floor = toID;
 					playSound();
-					pause = 60;
+					pause = PAUSE_TIME;
 				}
 			}
 		}.runTaskTimer(OlympaWorldFeatures.getInstance(), 1L, 1L);
@@ -348,17 +349,22 @@ public class Elevator extends AbstractObservable {
 	
 	class Floor {
 		
-		private final int y;
+		private int y;
 		private Location buttonUp, buttonDown;
 		
 		private Floor(int y) {
-			this.y = y;
+			this.setY(y);
 		}
 		
 		public int getY() {
 			return y;
 		}
 		
+		public void setY(int y) {
+			this.y = y;
+			sortFloors();
+		}
+
 		public boolean click(Location location) {
 			boolean isUp = location.equals(buttonUp);
 			boolean isDown = isUp ? false : location.equals(buttonDown);
