@@ -32,9 +32,8 @@ public class ElevatorsCommand extends ComplexCommand {
 				Elevator elevator = elevators.getElevator(Integer.parseInt(arg));
 				if (elevator != null) return elevator;
 			}catch (NumberFormatException ex) {}
-			sendError("Il n'y a pas d'ascenseur avec l'ID %d.", arg);
 			return null;
-		});
+		}, x -> String.format("Il n'y a pas d'ascenseur avec l'ID %d.", x));
 	}
 	
 	@Cmd (player = true, args = { "INTEGER", "INTEGER", "INTEGER", "INTEGER", "INTEGER" }, min = 5, syntax = "<floor 0 y> <xMin> <zMin> <xMax> <zMax>")
