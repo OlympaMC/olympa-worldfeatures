@@ -18,9 +18,13 @@ import fr.olympa.worldfeatures.elevators.Elevator.Floor;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 
 public class ElevatorsCommand extends ComplexCommand {
+	
+	private static final HoverEvent HOVER_EVENT = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(TextComponent.fromLegacyText("§eClique pour suggérer la commande !")));
 	
 	private ElevatorsManager elevators;
 	
@@ -44,7 +48,7 @@ public class ElevatorsCommand extends ComplexCommand {
 	
 	private TextComponent createCommandComponent(String legacyText, String command, String after, Elevator elevator) {
 		TextComponent compo = new TextComponent();
-		compo.setHoverEvent(ComplexCommand.COMMAND_HOVER);
+		compo.setHoverEvent(HOVER_EVENT);
 		compo.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/elevators " + command + " " + elevator.getID() + after));
 		for (BaseComponent baseComponent : TextComponent.fromLegacyText(legacyText)) compo.addExtra(baseComponent);
 		return compo;
@@ -52,7 +56,7 @@ public class ElevatorsCommand extends ComplexCommand {
 	
 	private TextComponent createButtonComponent(Elevator elevator, int floorID, Location button, String name, String type) {
 		TextComponent compo = new TextComponent();
-		compo.setHoverEvent(ComplexCommand.COMMAND_HOVER);
+		compo.setHoverEvent(HOVER_EVENT);
 		compo.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/elevators setButton " + elevator.getID() + " " + floorID + " " + type));
 		
 		TextComponent header = new TextComponent(name + " : ");
