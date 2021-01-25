@@ -1,10 +1,10 @@
 package fr.olympa.worldfeatures;
 
 import fr.olympa.api.groups.OlympaGroup;
-import fr.olympa.api.permission.OlympaPermission;
+import fr.olympa.api.permission.OlympaSpigotPermission;
 
 public class WorldFeaturesPermissions {
 	
-	public static final OlympaPermission ELEVATORS_COMMAND = new OlympaPermission(OlympaGroup.BUILDER);
+	public static final OlympaSpigotPermission ELEVATORS_COMMAND = new OlympaSpigotPermission(OlympaGroup.BUILDER);
 	
 }
