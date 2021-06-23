@@ -65,7 +65,7 @@ public class ElevatorsManager implements Listener {
 	private void addElevator(Elevator elevator, int id) {
 		elevators.put(id, elevator);
 		elevator.id = id;
-		elevator.observe("maager_save", updateElevator(id, elevator));
+		elevator.observe("manager_save", updateElevator(id, elevator));
 		elevator.updateChunks();
 	}
 	

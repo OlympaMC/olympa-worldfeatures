@@ -14,7 +14,7 @@ public class OlympaWorldFeatures extends OlympaAPIPlugin {
 		return instance;
 	}
 	
-	private ElevatorsManager elevators;
+	public ElevatorsManager elevators;
 	
 	@Override
 	public void onEnable() {
@@ -32,7 +32,7 @@ public class OlympaWorldFeatures extends OlympaAPIPlugin {
 	public void onDisable() {
 		super.onDisable();
 		
-		elevators.unload();
+		if (elevators != null) elevators.unload();
 	}
 	
 }
